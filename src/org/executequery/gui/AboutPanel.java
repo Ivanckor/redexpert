@@ -48,7 +48,7 @@ public class AboutPanel extends BaseDialog
         implements ActiveComponent,
         ActionListener {
 
-    public static final String TITLE = "About";
+    public static final String TITLE = "О программе";
     public static final String FRAME_ICON = "Information16.png";
 
     private JTabbedPane tabPane;
@@ -65,10 +65,10 @@ public class AboutPanel extends BaseDialog
     private void init() {
 
         tabPane = new JTabbedPane();
-        tabPane.add("Copyright", copyright());
-        tabPane.add("System", systemDetails());
-        tabPane.add("Resources", systemResources());
-        tabPane.add("License", license());
+        tabPane.add("Авторские права", copyright());
+        tabPane.add("Система", systemDetails());
+        tabPane.add("Ресурсы", systemResources());
+        tabPane.add("Лицензия", license());
         //tabPane.add("Credits", credits());
 
 
@@ -88,11 +88,11 @@ public class AboutPanel extends BaseDialog
     private Component copyright() {
         JPanel base = new JPanel(new GridBagLayout());
 
-        String versionText = "Version " +
+        String versionText = "Версия " +
                 System.getProperty("executequery.minor.version") +
                 ". Red Soft 2015-" + Calendar.getInstance().get(Calendar.YEAR) + ". http://www.red-soft.ru";
 
-        String forkText = "Fork of Execute Query: http://executequery.org";
+        String forkText = "Форк выполнения запроса: http://executequery.org";
         base.setBorder(BorderFactory.createEtchedBorder());
 
         GridBagConstraints gbc = new GridBagConstraints();
@@ -208,7 +208,7 @@ public class AboutPanel extends BaseDialog
         }
 
         JButton button = new JButton(ActionBuilder.get("license-command"));
-        button.setText("View License");
+        button.setText("Просмотреть лицензию");
         button.setIcon(null);
 
         base.setBorder(BorderFactory.createEtchedBorder());
@@ -283,7 +283,7 @@ public class AboutPanel extends BaseDialog
         private void loadNamesAndTitles() {
 
             String namesAndTitles = SystemProperties.getStringProperty(
-                    "system", "about.panel.credits");
+                    "система", "about.panel.credits");
 
             String[] namesAndTitlesAsArray = namesAndTitles.split(",");
             names = new String[namesAndTitlesAsArray.length];
