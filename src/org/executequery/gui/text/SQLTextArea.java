@@ -28,6 +28,7 @@ import javax.swing.event.CaretListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.*;
+import javax.swing.text.Style;
 import javax.swing.tree.TreePath;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -170,8 +171,8 @@ public class SQLTextArea extends RSyntaxTextArea implements TextEditor {
         return tokenList;
     }
 
-    private void createStyle(int type, Color fcolor,
-                             Color bcolor,String fontname,int style,int fontSize,boolean underline) {
+    public void createStyle(int type, Color fcolor,
+                               Color bcolor, String fontname, int style, int fontSize, boolean underline) {
         SyntaxScheme syntaxScheme = getSyntaxScheme();
         if(syntaxScheme!=null) {
             syntaxScheme.getStyle(type).foreground = fcolor;
@@ -206,6 +207,10 @@ public class SQLTextArea extends RSyntaxTextArea implements TextEditor {
         fontStyle = SystemProperties.getIntProperty("user", "sqlsyntax.style.keyword");
         createStyle(Token.RESERVED_WORD, color,  null,fontName,fontStyle,fontSize,false);
 
+        color = SystemProperties.getColourProperty("user", "sqlsyntax.colour.braces");
+        fontStyle = SystemProperties.getIntProperty("user", "sqlsyntax.style.braces");
+        //createStyle(Token.BRACES, color,  null,fontName,fontStyle,fontSize,false);
+
         color = SystemProperties.getColourProperty("user", "sqlsyntax.colour.quote");
         fontStyle = SystemProperties.getIntProperty("user", "sqlsyntax.style.quote");
         createStyle(Token.LITERAL_STRING_DOUBLE_QUOTE, color,  null,fontName,fontStyle,fontSize,false);
@@ -239,6 +244,8 @@ public class SQLTextArea extends RSyntaxTextArea implements TextEditor {
         color = SystemProperties.getColourProperty("user", "sqlsyntax.colour.datatype");
         fontStyle = SystemProperties.getIntProperty("user", "sqlsyntax.style.datatype");
         createStyle(Token.DATA_TYPE, color, null, fontName, fontStyle, fontSize, false);
+
+
 
 
     }
@@ -292,6 +299,7 @@ public class SQLTextArea extends RSyntaxTextArea implements TextEditor {
                         }
                     }
                 }
+
             }
         });
         this.autoCompletePopup = new DefaultAutoCompletePopupProvider(databaseConnection, this);
@@ -299,6 +307,7 @@ public class SQLTextArea extends RSyntaxTextArea implements TextEditor {
         registerFindAction();
         registerReplaceAction();
         registerCommentAction();
+
     }
 
     protected void registerCommentAction() {
@@ -369,9 +378,15 @@ public class SQLTextArea extends RSyntaxTextArea implements TextEditor {
         addCaretListener(new CaretListener() {
             @Override
             public void caretUpdate(CaretEvent e) {
+
                 if (changed && !autocompleteOnlyHotKey)
                     autoCompletePopupAction.actionPerformed(null);
                 changed = false;
+
+                SqlLexerTokenMaker maker = (SqlLexerTokenMaker) tokenMakerFactory.getTokenMaker("antlr/sql");
+                maker.setCaretPosition(e.getDot());
+
+
             }
         });
 

@@ -68,7 +68,7 @@ public abstract class AntlrTokenMaker extends TokenMakerBase {
             while (true) {
                 try {
                     org.antlr.v4.runtime.Token at = lexer.nextToken();
-                    at = convertToken(at);
+                    at = convertToken(at,startOffset);
                     setLanguageIndex(lexer._mode);
                     if (at.getType() == CommonToken.EOF) {
                         if(currentToken!=null)
@@ -135,7 +135,7 @@ public abstract class AntlrTokenMaker extends TokenMakerBase {
         return firstToken;
     }
 
-    protected abstract org.antlr.v4.runtime.Token convertToken(org.antlr.v4.runtime.Token token);
+    protected abstract org.antlr.v4.runtime.Token convertToken(org.antlr.v4.runtime.Token token,int startOffset);
 
 
     private void addToken(

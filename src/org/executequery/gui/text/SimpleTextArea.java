@@ -47,6 +47,8 @@ public class SimpleTextArea extends JPanel {
         textArea.setMargin(new Insets(3, 3, 3, 3));
         textArea.setCaretPosition(0);
         textArea.setDragEnabled(true);
+        textArea.getCaretPosition();
+
 
         JScrollPane scroller = new JScrollPane(textArea);
         scroller.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
