@@ -28,8 +28,14 @@ import org.fife.ui.rsyntaxtextarea.RSyntaxDocument;
 import org.fife.ui.rsyntaxtextarea.TokenMakerFactory;
 import org.underworldlabs.sqlLexer.SqlLexer;
 
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.UndoableEditEvent;
 import javax.swing.text.*;
+import javax.swing.undo.AbstractUndoableEdit;
+import javax.swing.undo.CannotRedoException;
+import javax.swing.undo.CannotUndoException;
 import java.awt.*;
+import java.awt.font.TextAttribute;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
@@ -38,7 +44,7 @@ import java.util.Vector;
 /**
  * @author Takis Diakoumis
  */
-public class SQLSyntaxDocument extends RSyntaxDocument
+public class SQLSyntaxDocument extends RSyntaxDocument implements StyledDocument
          {
 
     /**
@@ -435,6 +441,7 @@ public class SQLSyntaxDocument extends RSyntaxDocument
                            String content, int documentLength, List<Token> tokens) {
 
         // The lines affected by the latest document update
+
         int startLine = rootElement.getElementIndex(offset);
         int endLine = rootElement.getElementIndex(offset + length);
 
@@ -524,7 +531,208 @@ public class SQLSyntaxDocument extends RSyntaxDocument
         this.insertMode = insertMode;
     }
 
-}
+
+    protected DefaultStyledDocument.ElementBuffer buffersint;
+    public Element getCharacterElement(int pos) {
+                 Element e;
+                 for (e = getDefaultRootElement(); ! e.isLeaf(); ) {
+                     int index = e.getElementIndex(pos);
+                     e = e.getElement(index);
+                 }
+                 return e;
+             }
+
+             @Override
+             public Color getForeground(AttributeSet attr) {
+                 StyleContext styles = (StyleContext) getAttributeContext();
+                 return styles.getForeground(attr);
+             }
+
+             @Override
+             public Color getBackground(AttributeSet attr) {
+                 StyleContext styles = (StyleContext) getAttributeContext();
+                 return styles.getBackground(attr);
+             }
+
+             @Override
+             public Font getFont(AttributeSet attr) {
+                 StyleContext styles = (StyleContext) getAttributeContext();
+                 return styles.getFont(attr);
+             }
+
+             @Override
+             public Style addStyle(String nm, Style parent) {
+                 StyleContext styles = (StyleContext) getAttributeContext();
+                 return styles.addStyle(nm, parent);
+             }
+
+             @Override
+             public void removeStyle(String nm) {
+                 StyleContext styles = (StyleContext) getAttributeContext();
+                 styles.removeStyle(nm);
+             }
+
+             @Override
+             public Style getStyle(String nm) {
+                 StyleContext styles = (StyleContext) getAttributeContext();
+                 return styles.getStyle(nm);
+             }
+
+             public void setCharacterAttributes(int offset, int length, AttributeSet s, boolean replace) {
+
+                 if (length == 0) {
+                     return;
+                 }
+                 try {
+                     writeLock();
+                     DefaultDocumentEvent changes =
+                             new DefaultDocumentEvent(offset, length, DocumentEvent.EventType.CHANGE);
+
+                     // split elements that need it
+                     buffersint.change(offset, length, changes);
+
+                     AttributeSet sCopy = s.copyAttributes();
+
+                     // PENDING(prinz) - this isn't a very efficient way to iterate
+                     int lastEnd;
+                     for (int pos = offset; pos < (offset + length); pos = lastEnd) {
+                         Element run = getCharacterElement(pos);
+                         lastEnd = run.getEndOffset();
+                         if (pos == lastEnd) {
+                             // offset + length beyond length of document, bail.
+                             break;
+                         }
+                         MutableAttributeSet attr = (MutableAttributeSet) run.getAttributes();
+                         changes.addEdit(new DefaultStyledDocument.AttributeUndoableEdit(run, sCopy, replace));
+                         if (replace) {
+                             attr.removeAttributes(attr);
+                         }
+                         attr.addAttributes(s);
+                     }
+                     changes.end();
+                     fireChangedUpdate(changes);
+                     fireUndoableEditUpdate(new UndoableEditEvent(this, changes));
+                 } finally {
+                     writeUnlock();
+                 }
+
+             }
+             static final String I18NProperty = "i18n";
+
+             @Override
+             public void setParagraphAttributes(int offset, int length, AttributeSet s, boolean replace) {
+                 try {
+                     writeLock();
+                     DefaultDocumentEvent changes =
+                             new DefaultDocumentEvent(offset, length, DocumentEvent.EventType.CHANGE);
+
+                     AttributeSet sCopy = s.copyAttributes();
+
+                     // PENDING(prinz) - this assumes a particular element structure
+                     Element section = getDefaultRootElement();
+                     int index0 = section.getElementIndex(offset);
+                     int index1 = section.getElementIndex(offset + ((length > 0) ? length - 1 : 0));
+                     boolean isI18N = Boolean.TRUE.equals(getProperty(I18NProperty));
+                     boolean hasRuns = false;
+                     for (int i = index0; i <= index1; i++) {
+                         Element paragraph = section.getElement(i);
+                         MutableAttributeSet attr = (MutableAttributeSet) paragraph.getAttributes();
+                         changes.addEdit(new DefaultStyledDocument.AttributeUndoableEdit(paragraph, sCopy, replace));
+                         if (replace) {
+                             attr.removeAttributes(attr);
+                         }
+                         attr.addAttributes(s);
+                         if (isI18N && !hasRuns) {
+                             hasRuns = (attr.getAttribute(TextAttribute.RUN_DIRECTION) != null);
+                         }
+                     }
+
+                     if (hasRuns) {
+                        // updateBidi( changes );
+                     }
+
+                     changes.end();
+                     fireChangedUpdate(changes);
+                     fireUndoableEditUpdate(new UndoableEditEvent(this, changes));
+                 } finally {
+                     writeUnlock();
+                 }
+             }
+
+
+             @Override
+             public void setLogicalStyle(int pos, Style s) {
+                 Element paragraph = getParagraphElement(pos);
+                 if (paragraph instanceof DefaultStyledDocument.AbstractElement ) {
+                     DefaultStyledDocument.AbstractElement abstractElement= (DefaultStyledDocument.AbstractElement) paragraph;
+                     try {
+                         writeLock();
+                         StyleChangeUndoableEdit edit = new StyleChangeUndoableEdit(abstractElement, s);
+                         abstractElement.setResolveParent(s);
+                         int p0 = paragraph.getStartOffset();
+                         int p1 = paragraph.getEndOffset();
+                         DefaultDocumentEvent e =
+                                 new DefaultDocumentEvent(p0, p1 - p0, DocumentEvent.EventType.CHANGE);
+                         e.addEdit(edit);
+                         e.end();
+                         fireChangedUpdate(e);
+                         fireUndoableEditUpdate(new UndoableEditEvent(this, e));
+                     } finally {
+                         writeUnlock();
+                     }
+                 }
+             }
+
+             @Override
+             public Style getLogicalStyle(int p) {
+                 Style s = null;
+                 Element paragraph = getParagraphElement(p);
+                 if (paragraph != null) {
+                     AttributeSet a = paragraph.getAttributes();
+                     AttributeSet parent = a.getResolveParent();
+                     if (parent instanceof Style) {
+                         s = (Style) parent;
+                     }
+                 }
+                 return s;
+             }
+             static class StyleChangeUndoableEdit extends AbstractUndoableEdit {
+                 public StyleChangeUndoableEdit(AbstractElement element,
+                                                Style newStyle) {
+                     super();
+                     this.element = element;
+                     this.newStyle = newStyle;
+                     oldStyle = element.getResolveParent();
+                 }
+
+                 /**
+                  * Redoes a change.
+                  *
+                  * @exception CannotRedoException if the change cannot be redone
+                  */
+                 public void redo() throws CannotRedoException {
+                     super.redo();
+                     element.setResolveParent(newStyle);
+                 }
+
+                 /**
+                  * Undoes a change.
+                  *
+                  * @exception CannotUndoException if the change cannot be undone
+                  */
+                 public void undo() throws CannotUndoException {
+                     super.undo();
+                     element.setResolveParent(oldStyle);
+                 }
+
+                 /** Element to change resolve parent of. */
+                 protected AbstractElement element;
+                 /** New style. */
+                 protected Style newStyle;
+                 /** Old style, before setting newStyle. */
+                 protected AttributeSet oldStyle;
+             }
+         }
 
 
 
